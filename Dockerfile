@@ -1,9 +1,8 @@
-# Base image with Spark + Python
-FROM bitnami/spark:latest
+# Use an Apache Spark image with Python and Scala 2.12, matching the connector artifacts.
+FROM apache/spark:3.5.6-scala2.12-java17-python3-ubuntu
 
-# Install system dependencies for Pillow and ping
 USER root
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     nano \
     libjpeg-dev \
@@ -12,12 +11,6 @@ RUN apt-get update && apt-get install -y \
     iputils-ping \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory inside container
 WORKDIR /opt/news-sentimental
-
-# Copy all project files into container
 COPY . /opt/news-sentimental
-
-# Upgrade pip and install Python packages
-RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
