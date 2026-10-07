@@ -1,82 +1,4 @@
-# import time
-# import json
-# import feedparser
-# from kafka import KafkaProducer
-# from urllib.request import Request, urlopen
-# from urllib.error import URLError # Import URLError
-# import ssl # Import ssl
-
-# producer = None
-# while producer is None: # Keep trying to connect to Kafka
-#     try:
-#         producer = KafkaProducer(
-#             bootstrap_servers=['kafka:9093'],
-#             value_serializer=lambda x: json.dumps(x).encode('utf-8'),
-#             # Add a longer connection timeout
-#             request_timeout_ms=60000
-#         )
-#         print("✅ Kafka Producer connected!")
-#     except Exception as e: # Catch Kafka connection errors
-#         print(f"❌ Kafka connection failed: {e}. Retrying in 10 seconds...")
-#         time.sleep(10)
-
-
-# FEED_URL = "https://feeds.bbci.co.uk/news/rss.xml"
-# sent_titles = set()
-
-# while True:
-#     try: # <--- ADD TRY BLOCK HERE
-#         # Add a proper User-Agent
-#         req = Request(FEED_URL, headers={'User-Agent': 'Mozilla/5.0'})
-#         # Add timeout to urlopen
-#         feed = feedparser.parse(urlopen(req, timeout=30)) # Timeout after 30 seconds
-
-#         if feed.bozo:
-#              print(f"⚠️ Warning: Malformed feed XML from {FEED_URL}. Exception: {feed.bozo_exception}")
-#              # Optionally skip this iteration if the feed is bad
-#              # continue
-
-#         if not feed.entries:
-#             print(f"🤔 No entries found in feed: {FEED_URL}")
-
-
-#         for entry in feed.entries:
-#             # Check if title exists, provide default if not
-#             title = getattr(entry, 'title', 'No Title Provided').strip()
-#             link = getattr(entry, 'link', 'No Link Provided')
-
-#             if title not in sent_titles and title != 'No Title Provided':
-#                 news = {"title": title, "link": link}
-#                 try:
-#                     # Add timeout to Kafka send
-#                     future = producer.send('news_topic', value=news)
-#                     future.get(timeout=10) # Wait max 10s for ack
-#                     sent_titles.add(title)
-#                     print("✅ Sent:", title)
-#                 except Exception as kafka_err:
-#                      print(f"❌ Kafka send error: {kafka_err}")
-#                      # Optionally, you might want to try reconnecting the producer here
-#             elif title in sent_titles:
-#                 print("⏩ Skipped duplicate:", title)
-#             else:
-#                  print("⏩ Skipped entry with no title.")
-
-#     # <--- ADD EXCEPT BLOCK HERE
-#     except URLError as e:
-#         print(f"❌ Network Error fetching feed: {e}")
-#         # Log the specific SSL error if available
-#         if isinstance(e.reason, ssl.SSLError):
-#             print(f"   SSL Error details: {e.reason}")
-#     except Exception as e:
-#         print(f"❌ An unexpected error occurred: {e}")
-#         # Print detailed traceback for debugging unexpected errors
-#         import traceback
-#         traceback.print_exc()
-
-#     print(f"--- Sleeping for 60 seconds ---")
-#     time.sleep(60)
-
-
+"""Poll configured RSS feeds and publish article records to Kafka."""
 
 import time
 import json
@@ -88,30 +10,32 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError
 import ssl
 
+
 def clean_feed_text(value):
+    """Remove markup and normalize whitespace in an RSS field."""
     value = html.unescape(re.sub(r"<[^>]*>", " ", value or ""))
     return re.sub(r"\s+", " ", value).strip()
 
 
 def article_text(entry):
+    """Choose an RSS excerpt and cap its stored length."""
     for block in entry.get("content", []):
         text = clean_feed_text(block.get("value", ""))
         if text:
             return text[:6000]
     return clean_feed_text(entry.get("summary") or entry.get("description", ""))[:6000]
 
-# Optional: Kafka Producer setup (uncomment when you have Kafka setup)
+
 producer = None
-while producer is None:  # Keep trying to connect to Kafka
+while producer is None:
     try:
         producer = KafkaProducer(
             bootstrap_servers=['kafka:9093'],
             value_serializer=lambda x: json.dumps(x).encode('utf-8'),
-            # Add a longer connection timeout
             request_timeout_ms=60000
         )
         print("✅ Kafka Producer connected!")
-    except Exception as e:  # Catch Kafka connection errors
+    except Exception as e:
         print(f"❌ Kafka connection failed: {e}. Retrying in 10 seconds...")
         time.sleep(10)
 
@@ -141,11 +65,9 @@ FEED_URLS = [
 sent_titles = set()
 
 while True:
-    try:  # <--- ADD TRY BLOCK HERE
-        # Define SSL context to handle SSL certificates properly
+    try:
         context = ssl.create_default_context()
 
-        # Add a proper User-Agent
         for url in FEED_URLS:
             req = Request(url[0], headers={'User-Agent': 'Mozilla/5.0'})
 
@@ -169,7 +91,6 @@ while True:
                     print(f"🤔 No entries found in feed: {url[0]}")
 
                 for entry in entries:
-                    # Check if title exists, provide default if not
                     title = getattr(entry, 'title', 'No Title Provided').strip()
                     link = getattr(entry, 'link', 'No Link Provided')
                     source = url[1]
@@ -200,24 +121,19 @@ while True:
                         print("⏩ Skipped entry with no title.")
             except URLError as e:
                 print(f"❌ Network Error fetching feed from {url[0]}: {e}")
-                # Log the specific SSL error if available
                 if isinstance(e.reason, ssl.SSLError):
                     print(f"   SSL Error details: {e.reason}")
             except Exception as e:
                 print(f"❌ An unexpected error occurred while fetching feed {url[0]}: {e}")
-                # Print detailed traceback for debugging unexpected errors
                 import traceback
                 traceback.print_exc()
 
-    # <--- ADD EXCEPT BLOCK HERE
     except URLError as e:
         print(f"❌ Network Error fetching feed: {e}")
-        # Log the specific SSL error if available
         if isinstance(e.reason, ssl.SSLError):
             print(f"   SSL Error details: {e.reason}")
     except Exception as e:
         print(f"❌ An unexpected error occurred: {e}")
-        # Print detailed traceback for debugging unexpected errors
         import traceback
         traceback.print_exc()
 

@@ -1,7 +1,10 @@
+"""Parse RSS responses and recover valid entries from malformed feeds."""
+
 import feedparser
 
 
 def parse_feed_response(response):
+    """Parse an RSS response and retain valid entries when its XML is malformed."""
     feed = feedparser.parse(response)
     entries = list(feed.entries or [])
     if feed.bozo:

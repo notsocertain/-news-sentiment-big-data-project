@@ -1,3 +1,5 @@
+"""Streamlit dashboard for persisted headline sentiment and feed analytics."""
+
 import html
 import os
 from datetime import datetime, timedelta, timezone
@@ -84,6 +86,7 @@ st.markdown(
 
 @st.cache_resource
 def get_collection():
+    """Return the MongoDB collection after ensuring dashboard query indexes."""
     client = MongoClient(os.environ.get("MONGO_URI", "mongodb://localhost:27017/"), serverSelectionTimeoutMS=3000)
     collection = client["newsdb"]["sentiments"]
     collection.create_index("ingested_at")
@@ -93,6 +96,7 @@ def get_collection():
 
 
 def build_sentiment_chart_data(frame, buckets, frequency, label_format):
+    """Count sentiment labels for each requested Nepal-time bucket."""
     dated = frame.dropna(subset=["published_at_nepal"]).set_index("published_at_nepal")
     grouped = dated.groupby(
         [pd.Grouper(freq=frequency), "sentiment"]
@@ -112,6 +116,7 @@ def build_sentiment_chart_data(frame, buckets, frequency, label_format):
 
 @st.fragment(run_every="10s")
 def render_dashboard():
+    """Render recent headlines and analytics for the selected region."""
     selected_region = st.radio(
         "News feed", ["International", "Nepali"], horizontal=True, key="news_region"
     )

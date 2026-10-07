@@ -1,3 +1,5 @@
+"""Consume Kafka news, score new headlines, and append results to MongoDB."""
+
 from pyspark.sql import SparkSession
 from pymongo import MongoClient
 
@@ -11,12 +13,9 @@ from sentiment_pipeline import (
     score_article_records,
 )
 
-# Create Spark session
 spark = SparkSession.builder \
     .appName("RealTimeNewsSentiment") \
     .getOrCreate()
-    # .config("spark.mongodb.output.uri", "mongodb://mongo:27017/newsdb.sentiments") \
-    # .master("local[*]") \
 
 schema = StructType([
     StructField("title", StringType()),
@@ -28,7 +27,6 @@ schema = StructType([
     StructField("ingested_at", StringType())
 ])
 
-# Read from Kafka
 df = spark.readStream.format("kafka") \
     .option("kafka.bootstrap.servers", "kafka:9093") \
     .option("subscribe", "news_topic") \
@@ -47,6 +45,7 @@ _title_index_ready = False
 
 
 def process_microbatch(batch_df, _batch_id):
+    """Deduplicate, score, and persist one Kafka micro-batch."""
     global _title_index_ready
     articles = [row.asDict(recursive=True) for row in batch_df.coalesce(1).collect()]
     if not articles:

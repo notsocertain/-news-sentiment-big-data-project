@@ -1,3 +1,5 @@
+"""Run optional live sentiment-provider smoke requests for both regions."""
+
 import json
 import os
 from pathlib import Path
@@ -7,6 +9,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
 def load_env_file(path):
+    """Load KEY=VALUE pairs without replacing values already in the environment."""
     if not path.is_file():
         return
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -17,7 +20,9 @@ def load_env_file(path):
         if not os.environ.get(name.strip()):
             os.environ[name.strip()] = value.strip()
 
+
 def configure_ca_bundle():
+    """Configure certifi as Python's TLS bundle when no bundle is already configured."""
     if os.environ.get("SSL_CERT_FILE") or os.environ.get("SSL_CERT_DIR"):
         return
     try:
@@ -28,6 +33,7 @@ def configure_ca_bundle():
 
 
 def main():
+    """Score example headlines using the configured external providers."""
     load_env_file(PROJECT_ROOT / ".env")
     load_env_file(PROJECT_ROOT / ".env.cloudflare")
     configure_ca_bundle()

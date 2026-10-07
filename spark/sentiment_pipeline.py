@@ -1,3 +1,5 @@
+"""Deduplicate article records and score title-only regional batches."""
+
 import re
 
 from pyspark.sql.types import DoubleType, StringType, StructField, StructType
@@ -16,6 +18,7 @@ MAX_HEADLINES_PER_REQUEST = 5
 
 
 def deduplicate_article_records(articles, existing_titles=()):
+    """Keep the first exact-title occurrence, excluding titles already stored."""
     seen_titles = set(existing_titles)
     unique_articles = []
     for article in articles:
@@ -28,6 +31,7 @@ def deduplicate_article_records(articles, existing_titles=()):
 
 
 def score_article_records(articles, batch_scorer):
+    """Score titled articles in regional batches while preserving record order."""
     scored_records = [None] * len(articles)
     pending_by_region = {}
 
