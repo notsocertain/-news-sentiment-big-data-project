@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1550" height="1620" viewBox="0 0 1550 1620" role="img" aria-labelledby="title desc">
+  <title id="title">Newsroom Pulse system architecture</title>
+  <desc id="desc">Monochrome vertical architecture diagram. Publisher RSS feeds flow through a Python producer and Kafka to Spark Structured Streaming. Spark checks MongoDB and removes duplicates before requesting title-only batch sentiment from Cloudflare Workers AI, with Gemini fallback. Valid scores are stored in MongoDB and displayed by Streamlit. ZooKeeper and Spark checkpoints provide coordination and recovery state.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#111"/></marker>
+    <marker id="arrowSmall" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#111"/></marker>
+    <style>
+      text { font-family: "Times New Roman", Times, serif; fill: #111; }
+      .box { fill: #fff; stroke: #111; stroke-width: 3; rx: 12; }
+      .external { fill: #fff; stroke: #111; stroke-width: 3; stroke-dasharray: 12 8; rx: 12; }
+      .compose { fill: none; stroke: #333; stroke-width: 2.5; stroke-dasharray: 14 9; rx: 18; }
+      .flow { fill: none; stroke: #111; stroke-width: 4; marker-end: url(#arrow); }
+      .control { fill: none; stroke: #333; stroke-width: 3; stroke-dasharray: 10 7; marker-end: url(#arrowSmall); }
+      .title { font-size: 38px; font-weight: bold; letter-spacing: .7px; }
+      .section { font-size: 22px; font-weight: bold; letter-spacing: .8px; }
+      .head { font-size: 30px; font-weight: bold; }
+      .body { font-size: 24px; }
+      .small { font-size: 19px; }
+      .label { font-size: 19px; font-style: italic; }
+      .tag { font-size: 20px; font-weight: bold; letter-spacing: .7px; }
+    </style>
+  </defs>
+  <rect x="0" y="0" width="1550" height="1620" fill="#fff"/>
+  <text x="775" y="48" class="title" text-anchor="middle">NEWSROOM PULSE: SYSTEM ARCHITECTURE</text>
+
+  <rect x="425" y="82" width="700" height="140" class="external"/>
+  <text x="455" y="119" class="tag">EXTERNAL PUBLISHER SOURCES</text>
+  <text x="455" y="160" class="head">RSS / Atom feeds</text>
+  <text x="455" y="194" class="body">12 international · 7 Nepali · publisher metadata</text>
+
+  <rect x="150" y="250" width="970" height="1300" class="compose"/>
+  <rect x="190" y="231" width="500" height="38" fill="#fff"/>
+  <text x="200" y="258" class="section">LOCAL DOCKER COMPOSE DEPLOYMENT</text>
+
+  <rect x="300" y="300" width="620" height="150" class="box"/>
+  <text x="330" y="338" class="tag">INGESTION</text>
+  <text x="330" y="378" class="head">Python producer</text>
+  <text x="330" y="414" class="body">Sequential polling · parse and normalize</text>
+  <text x="330" y="440" class="small">Process-local exact-title deduplication</text>
+
+  <rect x="300" y="510" width="620" height="150" class="box"/>
+  <text x="330" y="548" class="tag">EVENT BUFFER</text>
+  <text x="330" y="588" class="head">Apache Kafka</text>
+  <text x="330" y="624" class="body">news_topic · 6 partitions · replication factor 1</text>
+  <text x="330" y="650" class="small">Normalized JSON headline records</text>
+
+  <rect x="250" y="735" width="690" height="230" class="box"/>
+  <text x="285" y="773" class="tag">STREAM PROCESSING</text>
+  <text x="285" y="815" class="head">Apache Spark Structured Streaming</text>
+  <text x="285" y="855" class="body">Micro-batches: at most 5 Kafka offsets</text>
+  <text x="285" y="892" class="body">MongoDB + current-batch duplicate checks first</text>
+  <text x="285" y="929" class="body">Title-only regional batches ≤ 5 · validate JSON</text>
+
+  <rect x="250" y="1030" width="300" height="125" class="box"/>
+  <text x="275" y="1068" class="tag">COORDINATION</text>
+  <text x="275" y="1110" class="head">ZooKeeper</text>
+
+  <rect x="600" y="1030" width="340" height="125" class="box"/>
+  <text x="625" y="1068" class="tag">RECOVERY STATE</text>
+  <text x="625" y="1106" class="head">Spark checkpoint</text>
+  <text x="625" y="1138" class="small">Kafka offsets and query progress</text>
+
+  <rect x="300" y="1210" width="620" height="150" class="box"/>
+  <text x="330" y="1248" class="tag">PERSISTENT RECORD STORE</text>
+  <text x="330" y="1288" class="head">MongoDB</text>
+  <text x="330" y="1324" class="body">newsdb.sentiments · metadata and scores</text>
+  <text x="330" y="1350" class="small">Named data volume · source and time indexes</text>
+
+  <rect x="300" y="1410" width="620" height="110" class="box"/>
+  <text x="330" y="1448" class="tag">PRESENTATION</text>
+  <text x="330" y="1488" class="head">Streamlit regional dashboard</text>
+  <text x="330" y="1515" class="small">International and Nepali views · 10-second refresh</text>
+
+  <rect x="1175" y="735" width="360" height="230" class="external"/>
+  <text x="1205" y="773" class="tag">EXTERNAL MODEL APIs</text>
+  <text x="1205" y="815" class="head">Cloudflare Workers</text>
+  <text x="1205" y="852" class="body">AI · primary provider</text>
+  <text x="1205" y="898" class="head">Gemini</text>
+  <text x="1205" y="932" class="body">Fallback provider</text>
+
+  <path d="M775 222 V300" class="flow"/>
+  <text x="798" y="276" class="label">RSS items</text>
+  <path d="M610 450 V510" class="flow"/>
+  <text x="633" y="489" class="label">normalized JSON</text>
+  <path d="M610 660 V735" class="flow"/>
+  <text x="633" y="704" class="label">Kafka records</text>
+
+  <path d="M940 810 H1175" class="flow"/>
+  <text x="1058" y="795" class="label" text-anchor="middle">title IDs + prompt</text>
+  <path d="M1175 890 H940" class="flow"/>
+  <text x="1058" y="920" class="label" text-anchor="middle">JSON scores</text>
+
+  <path d="M300 585 H215 V1090 H250" class="control"/>
+  <text x="178" y="975" class="label" transform="rotate(-90 178 975)">broker coordination</text>
+  <path d="M825 965 V1030" class="control"/>
+  <text x="845" y="1008" class="label">checkpoint writes</text>
+
+  <path d="M940 850 H975 V1245 H920" class="flow"/>
+  <text x="1110" y="1200" class="label" text-anchor="end">scored records</text>
+  <path d="M920 1305 H1040 V910 H940" class="flow"/>
+  <text x="1110" y="1120" class="label" text-anchor="end">title lookup</text>
+  <path d="M610 1360 V1410" class="flow"/>
+  <text x="635" y="1392" class="label">regional queries</text>
+
+  <text x="150" y="1592" class="small">Solid arrows show data flow; dashed arrows show coordination and checkpoint state. Duplicate checks occur before model inference.</text>
+</svg>
