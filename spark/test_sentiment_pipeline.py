@@ -6,10 +6,14 @@ from sentiment_pipeline import deduplicate_article_records, score_article_record
 
 
 class SentimentPipelineTest(unittest.TestCase):
+    """Verify deduplication, batching, regional isolation, and pacing."""
+
     def test_existing_and_same_batch_duplicates_are_removed_before_scoring(self):
+        """Remove persisted and same-batch duplicates before scoring."""
         calls = []
 
         def score_batch(headlines, region=None):
+            """Record inputs and return deterministic neutral test scores."""
             calls.append((region, list(headlines)))
             return [
                 {
@@ -42,6 +46,7 @@ class SentimentPipelineTest(unittest.TestCase):
         )
 
     def test_batches_at_five_and_preserves_score_to_headline_mapping(self):
+        """Split batches at five headlines and preserve headline-score mapping."""
         scores = {
             "headline 0": -100,
             "headline 1": -60,
@@ -54,6 +59,7 @@ class SentimentPipelineTest(unittest.TestCase):
         calls = []
 
         def score_batch(headlines, region=None):
+            """Return deterministic scores for the requested headlines."""
             calls.append(list(headlines))
             return [
                 {
@@ -85,9 +91,11 @@ class SentimentPipelineTest(unittest.TestCase):
         self.assertTrue(all(record["region"] == "International" for record in scored))
 
     def test_articles_are_batched_separately_by_region(self):
+        """Keep Nepali and international headlines in separate batches."""
         calls = []
 
         def score_batch(headlines, region=None):
+            """Record regional inputs and return neutral test scores."""
             calls.append((region, list(headlines)))
             return [
                 {
@@ -115,9 +123,11 @@ class SentimentPipelineTest(unittest.TestCase):
         ])
 
     def test_only_title_is_sent_and_missing_titles_are_unscored(self):
+        """Send only titles and leave records without a title unscored."""
         calls = []
 
         def score_batch(headlines, region=None):
+            """Record requested headlines and return one deterministic score."""
             calls.append((region, list(headlines)))
             return [{
                 "sentiment": "Positive",
@@ -142,6 +152,7 @@ class SentimentPipelineTest(unittest.TestCase):
         self.assertEqual(scored[2]["sentiment"], "Unscored")
 
     def test_request_pacing_enforces_configured_interval(self):
+        """Wait only for the remaining request interval."""
         previous_started_at = sentiment_models._last_request_started_at
         previous_interval = sentiment_models.MIN_REQUEST_INTERVAL_SECONDS
         try:

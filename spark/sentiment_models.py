@@ -1,3 +1,5 @@
+"""Call external providers for validated, region-specific headline sentiment batches."""
+
 import json
 import os
 import time
@@ -54,6 +56,7 @@ _CLOUDFLARE_BATCH_SCHEMA = {
 
 
 def _wait_for_request_slot(interval_seconds=MIN_REQUEST_INTERVAL_SECONDS):
+    """Enforce the process-local minimum interval between provider requests."""
     global _last_request_started_at
     now = time.monotonic()
     if _last_request_started_at is not None:
@@ -64,6 +67,7 @@ def _wait_for_request_slot(interval_seconds=MIN_REQUEST_INTERVAL_SECONDS):
 
 
 def _post_json(url, payload, headers, provider):
+    """POST JSON to a provider and decode its response."""
     request = Request(
         url,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -82,10 +86,12 @@ def _post_json(url, payload, headers, provider):
 
 
 def _is_nepali_region(region):
+    """Return whether a region uses Nepali prompts and credentials."""
     return (region or "").strip().casefold() == "nepali"
 
 
 def _system_prompt(region):
+    """Build provider-level output-format and language instructions."""
     if _is_nepali_region(region):
         return (
             "Return only valid JSON matching the requested results schema. "
@@ -96,6 +102,7 @@ def _system_prompt(region):
 
 
 def _batch_prompt(headlines, region=None):
+    """Build a region-specific JSON scoring request with stable headline IDs."""
     items = [
         {"id": index, "headline": headline}
         for index, headline in enumerate(headlines, start=1)
@@ -140,12 +147,15 @@ def _batch_prompt(headlines, region=None):
         )
     return instruction + json.dumps(items, ensure_ascii=False)
 
+
 def _credential_value(name, region):
+    """Read an international or Nepali credential from the environment."""
     suffix = "_NEPALI" if _is_nepali_region(region) else ""
     return os.environ.get(f"{name}{suffix}", "").strip()
 
 
 def _cloudflare_response(headlines, region=None):
+    """Call Cloudflare Workers AI and return its generated JSON response."""
     account_id = _credential_value("CLOUDFLARE_ACCOUNT_ID", region)
     api_token = _credential_value("CLOUDFLARE_API_TOKEN", region)
     if not account_id or not api_token:
@@ -189,6 +199,7 @@ def _cloudflare_response(headlines, region=None):
 
 
 def _gemini_response(headlines, region=None):
+    """Call Gemini and return its generated JSON response."""
     api_key = _credential_value("GEMINI_API_KEY", region)
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is required for the Gemini fallback.")
@@ -222,6 +233,7 @@ def _gemini_response(headlines, region=None):
 
 
 def _parse_batch_scores(response_data, headline_count, provider):
+    """Validate provider scores and restore the original headline order."""
     try:
         parsed_response = (
             json.loads(response_data) if isinstance(response_data, str) else response_data
@@ -253,10 +265,12 @@ def _parse_batch_scores(response_data, headline_count, provider):
 
 
 def _label_score(score):
+    """Map a numeric score to its positive, neutral, or negative label."""
     return "Positive" if score >= 20 else "Negative" if score <= -20 else "Neutral"
 
 
 def score_sentiment_batch(headlines, region=None):
+    """Score a headline batch with Cloudflare first and Gemini as fallback."""
     if not headlines:
         return []
 

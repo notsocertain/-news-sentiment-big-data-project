@@ -5,7 +5,10 @@ import sentiment_models
 
 
 class SentimentProviderTest(unittest.TestCase):
+    """Verify provider selection, fallback behavior, and response mapping."""
+
     def test_cloudflare_scores_a_batch_as_the_primary_provider(self):
+        """Use Cloudflare as primary and restore scores to request order."""
         headlines = ["one", "two", "three", "four", "five"]
         response = {
             "results": [
@@ -29,6 +32,7 @@ class SentimentProviderTest(unittest.TestCase):
         )
 
     def test_gemini_handles_cloudflare_failure_for_same_region(self):
+        """Fall back to Gemini with the same headlines and region."""
         headlines = ["A severe storm damaged homes."]
         with patch.object(
             sentiment_models,
@@ -47,6 +51,7 @@ class SentimentProviderTest(unittest.TestCase):
         self.assertEqual(result[0]["sentiment_model"], sentiment_models.GEMINI_MODEL_ID)
 
     def test_provider_credentials_are_selected_by_region(self):
+        """Select distinct provider credentials for each news region."""
         cloudflare_response = {
             "success": True,
             "result": {"response": '{"results":[{"id":1,"score":10}]}'},
